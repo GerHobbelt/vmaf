@@ -73,12 +73,24 @@ static Alias alias_map[] = {
         .alias = "integer_adm2",
     },
     {
+        .name = "VMAF_integer_feature_aim_score",
+        .alias = "integer_aim",
+    },
+    {
+        .name = "VMAF_integer_feature_adm3_score",
+        .alias = "integer_adm3",
+    },
+    {
         .name = "VMAF_integer_feature_motion_score",
         .alias = "integer_motion",
     },
     {
         .name = "VMAF_integer_feature_motion2_score",
         .alias = "integer_motion2",
+    },
+    {
+        .name = "VMAF_integer_feature_motion3_score",
+        .alias = "integer_motion3",
     },
     {
         .name = "VMAF_integer_feature_vif_scale0_score",
@@ -95,6 +107,26 @@ static Alias alias_map[] = {
     {
         .name = "VMAF_integer_feature_vif_scale3_score",
         .alias = "integer_vif_scale3",
+    },
+    {
+        .name = "Cambi_feature_cambi_score",
+        .alias = "cambi",
+    },
+    {
+        .name = "Speed_chroma_feature_speed_chroma_u_score",
+        .alias = "speed_chroma_u",
+    },
+    {
+        .name = "Speed_chroma_feature_speed_chroma_v_score",
+        .alias = "speed_chroma_v",
+    },
+    {
+        .name = "Speed_chroma_feature_speed_chroma_uv_score",
+        .alias = "speed_chroma_uv",
+    },
+    {
+        .name = "Speed_temporal_feature_speed_temporal_score",
+        .alias = "speed_temporal",
     },
 };
 
