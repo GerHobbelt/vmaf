@@ -6,7 +6,7 @@ src_dir = './'
 model_dir = '../../model/'
 cuda_dir = './cuda/'
 
-vmaf_base_include = include_directories('./', './feature/common', '../include')
+vmaf_base_include = include_directories('./', './feature', './feature/common', '../include')
 
 if cc.get_id() != 'msvc'
     vmaf_cflags_common = [
@@ -170,6 +170,56 @@ if built_in_models_enabled
             )
         endforeach
 
+        model_v1_0_16_dir = '../../model/vmaf_v1.0.16/'
+        model_v1_0_16_files = [
+            'vmaf_v1.0.16_3d0h.json',
+            'vmaf_v1.0.16_3d0h_2160.json',
+            'vmaf_v1.0.16_5d0h.json',
+            'vmaf_v1.0.16_1d5h_2160.json',
+        ]
+        foreach model_file : model_v1_0_16_files
+            if xdd_supports_n
+                command = [xxd, '-i', '-n', 'src_@PLAINNAME@', '@INPUT@', '@OUTPUT@']
+            else
+                command = [xxd, '-i', '@INPUT@', '@OUTPUT@']
+            endif
+            json_model_c_sources += custom_target(
+                  model_file,
+                  output : '@PLAINNAME@.c',
+                  input : configure_file(
+                    input : model_v1_0_16_dir + model_file,
+                    output : model_file,
+                    copy: true
+                  ),
+                  command : command,
+            )
+        endforeach
+
+        model_v1_0_16_hfr_dir = '../../model/vmaf_v1.0.16_hfr/'
+        model_v1_0_16_hfr_files = [
+            'vmaf_v1.0.16_hfr_3d0h.json',
+            'vmaf_v1.0.16_hfr_3d0h_2160.json',
+            'vmaf_v1.0.16_hfr_5d0h.json',
+            'vmaf_v1.0.16_hfr_1d5h_2160.json',
+        ]
+        foreach model_file : model_v1_0_16_hfr_files
+            if xdd_supports_n
+                command = [xxd, '-i', '-n', 'src_@PLAINNAME@', '@INPUT@', '@OUTPUT@']
+            else
+                command = [xxd, '-i', '@INPUT@', '@OUTPUT@']
+            endif
+            json_model_c_sources += custom_target(
+                  model_file,
+                  output : '@PLAINNAME@.c',
+                  input : configure_file(
+                    input : model_v1_0_16_hfr_dir + model_file,
+                    output : model_file,
+                    copy: true
+                  ),
+                  command : command,
+            )
+        endforeach
+
         cdata.set10('VMAF_BUILT_IN_MODELS', built_in_models_enabled)
     endif
 endif
@@ -239,17 +289,17 @@ if is_asm_enabled
       x86_avx2_sources = [
           feature_src_dir + 'common/convolution_avx.c',
           feature_src_dir + 'x86/motion_avx2.c',
-          feature_src_dir + 'x86/motion_v2_avx2.c',
           feature_src_dir + 'x86/vif_avx2.c',
           feature_src_dir + 'x86/adm_avx2.c',
           feature_src_dir + 'x86/cambi_avx2.c',
+          feature_src_dir + 'x86/speed_avx2.c',
       ]
 
       x86_avx2_static_lib = static_library(
           'x86_avx2',
           x86_avx2_sources,
           include_directories : vmaf_base_include,
-          c_args : ['-mavx', '-mavx2'] + vmaf_cflags_common,
+          c_args : ['-mavx', '-mavx2', '-mfma'] + vmaf_cflags_common,
       )
 
       platform_specific_cpu_objects += x86_avx2_static_lib.extract_all_objects(recursive: true)
@@ -257,9 +307,9 @@ if is_asm_enabled
       if is_avx512_enabled and is_avx512_supported
         x86_avx512_sources = [
             feature_src_dir + 'x86/motion_avx512.c',
-            feature_src_dir + 'x86/motion_v2_avx512.c',
             feature_src_dir + 'x86/vif_avx512.c',
             feature_src_dir + 'x86/adm_avx512.c',
+            feature_src_dir + 'x86/speed_avx512.c',
         ]
 
         x86_avx512_static_lib = static_library(
@@ -442,7 +492,6 @@ libvmaf_feature_sources = [
     feature_src_dir + 'integer_adm.c',
     feature_src_dir + 'feature_collector.c',
     feature_src_dir + 'integer_motion.c',
-    feature_src_dir + 'integer_motion_v2.c',
     feature_src_dir + 'integer_vif.c',
     feature_src_dir + 'ciede.c',
     feature_src_dir + 'common/alignment.c',
@@ -459,6 +508,9 @@ libvmaf_feature_sources = [
     feature_src_dir + 'cambi.c',
     feature_src_dir + 'luminance_tools.c',
     feature_src_dir + 'null.c',
+    feature_src_dir + 'common/convolution.c',
+    feature_src_dir + 'vif_tools.c',
+    feature_src_dir + 'speed.c',
 ]
 
 if float_enabled
@@ -469,16 +521,13 @@ if float_enabled
         feature_src_dir + 'float_motion.c',
         feature_src_dir + 'float_vif.c',
         feature_src_dir + 'float_moment.c',
-        feature_src_dir + 'speed.c',
 
-        feature_src_dir + 'common/convolution.c',
         feature_src_dir + 'offset.c',
         feature_src_dir + 'adm.c',
         feature_src_dir + 'adm_tools.c',
         feature_src_dir + 'ansnr.c',
         feature_src_dir + 'ansnr_tools.c',
         feature_src_dir + 'vif.c',
-        feature_src_dir + 'vif_tools.c',
         feature_src_dir + 'motion.c',
         feature_src_dir + 'psnr.c',
         feature_src_dir + 'psnr_tools.c',
@@ -533,12 +582,8 @@ libvmaf_sources = [
     src_dir + 'log.c',
     src_dir + 'framesync.c',
     src_dir + 'metadata_handler.c',
+    src_dir + 'picture_pool.c',
 ]
-
-# picture pool - only compiled with -DVMAF_PICTURE_POOL
-if '-DVMAF_PICTURE_POOL' in get_option('c_args')
-    libvmaf_sources += [src_dir + 'picture_pool.c']
-endif
 
 if is_cuda_enabled
     vmaf_cflags_common += '-DHAVE_CUDA'
