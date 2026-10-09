@@ -34,12 +34,20 @@ is_asm_enabled = get_option('enable_asm') == true
 is_cuda_enabled = get_option('enable_cuda') == true
 is_avx512_enabled = get_option('enable_avx512') == true
 is_nvtx_enabled = get_option('enable_nvtx') == true
+is_zimg_enabled = get_option('enable_zimg') == true
 
-if is_nvtx_enabled    
+if is_nvtx_enabled
     cdata.set10('HAVE_NVTX', is_nvtx_enabled)
 endif
 if is_cuda_enabled
     cdata.set10('HAVE_CUDA', is_cuda_enabled)
+endif
+
+zimg_dependency = []
+if is_zimg_enabled
+    # ZIMG_MATRIX_ICTCP, used for ICtCp conversion, first appeared in zimg 2.7
+    zimg_dependency = dependency('zimg', version: '>=2.7', required: true)
+    cdata.set10('HAVE_ZIMG', is_zimg_enabled)
 endif
 
 if is_asm_enabled
@@ -609,6 +617,9 @@ endif
 if is_nvtx_enabled
     vmaf_cflags_common += '-DHAVE_NVTX'
 endif
+if is_zimg_enabled
+    vmaf_cflags_common += '-DHAVE_ZIMG'
+endif
 
 if host_machine.system() == 'windows'
     vmaf_soversion = ''
@@ -616,29 +627,79 @@ else
     vmaf_soversion = vmaf_api_version_major
 endif
 
-libvmaf = library(
-    'vmaf',
-    [libvmaf_sources, rev_target, json_model_c_sources],
-    include_directories : [libvmaf_inc, vmaf_include],
-    c_args : vmaf_cflags_common,
-    dependencies : [
-      thread_lib,
-      math_lib,
-      stdatomic_dependency,
-      cuda_dependency,
-      builtin_clz_dependency,
-	  rev_dep
-    ],
-    objects : [
-        platform_specific_cpu_objects,
-        libvmaf_feature_static_lib.extract_all_objects(recursive: true),
-        libvmaf_cpu_static_lib.extract_all_objects(recursive: true),
-        libsvm_static_lib.extract_all_objects(recursive: true),
-    ],
-    version : vmaf_soname_version,
-    soversion : vmaf_soversion,
-    install: true,
-)
+_vmaf_src = [libvmaf_sources, rev_target, json_model_c_sources]
+_vmaf_inc = [libvmaf_inc, vmaf_include]
+_vmaf_deps = [
+    thread_lib,
+    math_lib,
+    stdatomic_dependency,
+    cuda_dependency,
+    builtin_clz_dependency,
+    rev_dep,
+    zimg_dependency,
+]
+_vmaf_objs = [
+    platform_specific_cpu_objects,
+    libvmaf_feature_static_lib.extract_all_objects(recursive: true),
+    libvmaf_cpu_static_lib.extract_all_objects(recursive: true),
+    libsvm_static_lib.extract_all_objects(recursive: true),
+]
+
+if cc.get_id() == 'msvc'
+    # MSVC: import lib and static lib cannot both be vmaf.lib.
+    # static-only → vmaf.lib
+    # shared-only / both → vmaf.dll + vmaf.lib (import); static (if both) → vmaf-static.lib
+    _default_library = get_option('default_library')
+    _vmaf_for_pc = []
+
+    if _default_library != 'static'
+        libvmaf_shared = shared_library(
+            'vmaf',
+            _vmaf_src,
+            include_directories: _vmaf_inc,
+            c_args: vmaf_cflags_common,
+            dependencies: _vmaf_deps,
+            objects: _vmaf_objs,
+            version: vmaf_soname_version,
+            soversion: vmaf_soversion,
+            name_prefix: '',
+            install: true,
+        )
+        _vmaf_for_pc += libvmaf_shared
+    endif
+
+    if _default_library != 'shared'
+        _static_name = _default_library == 'both' ? 'vmaf-static' : 'vmaf'
+        libvmaf_static = static_library(
+            _static_name,
+            _vmaf_src,
+            include_directories: _vmaf_inc,
+            c_args: vmaf_cflags_common,
+            dependencies: _vmaf_deps,
+            objects: _vmaf_objs,
+            name_prefix: '',
+            name_suffix: 'lib',
+            install: true,
+        )
+        if _default_library == 'static'
+            _vmaf_for_pc += libvmaf_static
+        endif
+    endif
+
+    libvmaf = _vmaf_for_pc[0]
+else
+    libvmaf = library(
+        'vmaf',
+        _vmaf_src,
+        include_directories: _vmaf_inc,
+        c_args: vmaf_cflags_common,
+        dependencies: _vmaf_deps,
+        objects: _vmaf_objs,
+        version: vmaf_soname_version,
+        soversion: vmaf_soversion,
+        install: true,
+    )
+endif
 
 pkg_mod = import('pkgconfig')
 pkg_mod.generate(libraries: libvmaf,
@@ -647,5 +708,5 @@ pkg_mod.generate(libraries: libvmaf,
     filebase: 'libvmaf',
     description: 'VMAF, Video Multimethod Assessment Fusion',
     subdirs: [ '.', 'libvmaf'],
-	libraries_private: cc.get_id() == 'msvc' ? [thread_lib] : [],
+    libraries_private: cc.get_id() == 'msvc' ? [thread_lib] : [],
 )
