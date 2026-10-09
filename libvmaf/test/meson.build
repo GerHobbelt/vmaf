@@ -122,6 +122,7 @@ test_cli_parse = executable('test_cli_parse',
     include_directories : [libvmaf_inc, test_inc, include_directories('../src/'), include_directories('../tools/')],
     link_with : get_option('default_library') == 'both' ? libvmaf.get_static_lib() : libvmaf,
     c_args : [compat_cflags],
+    dependencies : getopt_dependency
 )
 
 test_psnr = executable('test_psnr',
