@@ -161,6 +161,7 @@ test_motion_blend = executable('test_motion_blend',
     ['test.c', 'test_motion_blend.c'],
     include_directories : [libvmaf_inc, test_inc, include_directories('../src/')],
     link_with : get_option('default_library') == 'both' ? libvmaf.get_static_lib() : libvmaf,
+	dependencies : [stdatomic_dependency]
 )
 
 test_speed_filter = executable('test_speed_filter',
@@ -195,7 +196,7 @@ test_ring_buffer = executable('test_ring_buffer',
     ['test.c', 'test_ring_buffer.c', '../src/cuda/ring_buffer.c', '../src/cuda/picture_cuda.c'],
     include_directories : [libvmaf_inc, test_inc, include_directories('../src/')],
     link_with : get_option('default_library') == 'both' ? libvmaf.get_static_lib() : libvmaf,
-    dependencies: cuda_dependency,
+    dependencies: [cuda_dependency, thread_lib, stdatomic_dependency],
     c_args: ['-DHAVE_CUDA=1']
 )
 
@@ -203,7 +204,7 @@ test_cuda_pic_preallocation = executable('test_cuda_pic_preallocation',
     ['test.c', 'test_cuda_pic_preallocation.c'],
     include_directories : [libvmaf_inc, test_inc],
     link_with : get_option('default_library') == 'both' ? libvmaf.get_static_lib() : libvmaf,
-    dependencies: cuda_dependency,
+    dependencies: [cuda_dependency, thread_lib, stdatomic_dependency],
     c_args: ['-DHAVE_CUDA=1']
 )
 
@@ -213,7 +214,7 @@ endif
 
 test_pic_preallocation = executable('test_pic_preallocation',
     ['test.c', 'test_pic_preallocation.c'],
-    include_directories : [libvmaf_inc, test_inc],
+    include_directories : [libvmaf_inc, test_inc, pthreadwin32_inc],
     link_with : get_option('default_library') == 'both' ? libvmaf.get_static_lib() : libvmaf,
 )
 test('test_pic_preallocation', test_pic_preallocation)
