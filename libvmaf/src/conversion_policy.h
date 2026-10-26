@@ -45,12 +45,9 @@
  * "keep each picture's own"). `*needs_conversion` is true unless both `ref`
  * and `dist` already match the target. `ref` and `dist` are allowed to
  * differ from each other: each is converted to the same target. The caller
- * is responsible for `target->w`/`h`/`resample_filter`.
- *
- * NOTE: a resolution-mismatch policy (deciding `target->w`/`h` when
- * reference and distorted differ) is expected to land here too once
- * that's in scope, rather than in a separate module - hence
- * `conversion_policy` rather than `colorspace_policy`.
+ * is responsible for `target->w`/`h`/`resample_filter`, which
+ * vmaf_conversion_policy_scale() fills in when the model declares a
+ * display resolution.
  */
 int vmaf_conversion_policy_target(const VmafPicture *ref,
                                   const VmafPicture *dist,
@@ -58,12 +55,41 @@ int vmaf_conversion_policy_target(const VmafPicture *ref,
                                   bool *needs_conversion,
                                   VmafPictureConvertTarget *target);
 
+/**
+ * Fill in `ref_target->w`/`h`/`resample_filter` and `dist_target` for a model
+ * that declares a display resolution, after vmaf_conversion_policy_target().
+ * `ref_target` is the target that call returned.
+ *
+ * `display_resolution` is the short side both pictures are scaled to (1080 or
+ * 2160). The orientation follows the source, so portrait video scores at e.g.
+ * 1080x1920, and the long side keeps the source's aspect ratio, rounded to
+ * an even number. Upscaling uses bicubic, downscaling lanczos.
+ *
+ * `ref` and `dist` may differ in size, and are both scaled to the size the
+ * reference scales to. Their orientations and aspect ratios must match,
+ * within the rounding of the long side to even (a landscape and a portrait
+ * picture never match; a square matches either); otherwise -EINVAL. An aspect
+ * ratio that would scale the long side beyond 4x `display_resolution` is also
+ * -EINVAL.
+ *
+ * The filter depends on each picture's own scaling direction, so `ref_target`
+ * holds the reference's and `dist_target` the distorted picture's. `dist_target`
+ * is set from `ref_target`, so the two are otherwise identical. `*needs_conversion` is set to true when either picture
+ * is not at the target size, and left as is otherwise.
+ */
+int vmaf_conversion_policy_scale(const VmafPicture *ref,
+                                 const VmafPicture *dist,
+                                 unsigned display_resolution,
+                                 bool *needs_conversion,
+                                 VmafPictureConvertTarget *ref_target,
+                                 VmafPictureConvertTarget *dist_target);
+
 /** True when all of `a`'s color attributes equal `b`'s. */
 bool vmaf_conversion_policy_color_equal(const VmafColor *a, const VmafColor *b);
 
 /**
  * True when `pic` already matches `target`: same color, and the same pixel
- * format and bit depth wherever `target` pins them.
+ * format, bit depth and size wherever `target` pins them.
  */
 bool vmaf_conversion_policy_picture_matches(const VmafPicture *pic,
                                             const VmafPictureConvertTarget *target);
